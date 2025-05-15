@@ -1,5 +1,3 @@
-<!-- public/index.html -->
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -37,19 +35,27 @@
           statusEl.textContent = '⚠ Erro ao buscar status'
           return
         }
-        const { state, qr } = await resp.json()
+        const { state, qr, pairingCode } = await resp.json()
 
         if (state === 'open') {
           statusEl.textContent = '✅ Conectada'
           qrEl.innerHTML = ''
         } else {
           statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
+          qrEl.innerHTML = ''
+          let imgSrc
           if (qr) {
-            // se o retorno já vier com "data:" não re-prefixe
-            const src = qr.startsWith('data:') 
-              ? qr 
+            imgSrc = qr.startsWith('data:')
+              ? qr
               : `data:image/png;base64,${qr}`
-            qrEl.innerHTML = `<img src="${src}" alt="QR Code" />`
+          } else if (pairingCode) {
+            imgSrc = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(pairingCode)}`
+          }
+          if (imgSrc) {
+            const img = document.createElement('img')
+            img.src = imgSrc
+            img.alt = 'QR Code'
+            qrEl.appendChild(img)
           } else {
             qrEl.textContent = 'Erro: QR code não disponível'
           }

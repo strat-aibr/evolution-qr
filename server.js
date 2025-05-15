@@ -1,5 +1,3 @@
-// server.js
-
 import express from 'express'
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
@@ -18,10 +16,8 @@ if (!API_URL || !API_KEY) {
 
 const headers = { apikey: API_KEY }
 
-// Serve arquivos estáticos da pasta `public/`
 app.use(express.static('public'))
 
-// Endpoint que retorna o estado da instância e, se desconectada, o QR code em Base64
 app.get('/api/qr', async (req, res) => {
   const instance = req.query.instance
   if (!instance) {
@@ -29,7 +25,7 @@ app.get('/api/qr', async (req, res) => {
   }
 
   try {
-    // 1) Verifica estado da instância
+    // 1) Verifica estado
     const stateResp = await fetch(`${API_URL}/instance/connectionState/${instance}`, { headers })
     if (!stateResp.ok) {
       const txt = await stateResp.text()
@@ -44,8 +40,9 @@ app.get('/api/qr', async (req, res) => {
     }
     const state = instObj.state
 
-    // 2) Se não estiver "open", busca o QR code
+    // 2) Se desconectada, busca o QR code e o pairingCode
     let qr = null
+    let pairingCode = null
     if (state !== 'open') {
       const qrResp = await fetch(`${API_URL}/instance/connect/${instance}`, { headers })
       if (!qrResp.ok) {
@@ -54,10 +51,11 @@ app.get('/api/qr', async (req, res) => {
         return res.status(500).json({ error: 'Falha ao buscar QR', details: txt })
       }
       const qrJson = await qrResp.json()
-      qr = qrJson.code   // campo `code` já vem em Base64
+      qr = qrJson.code
+      pairingCode = qrJson.pairingCode
     }
 
-    return res.json({ state, qr })
+    return res.json({ state, qr, pairingCode })
   } catch (err) {
     console.error('Erro interno no servidor:', err)
     return res.status(500).json({ error: 'Erro interno no servidor' })
