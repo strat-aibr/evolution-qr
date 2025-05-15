@@ -1,18 +1,18 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Evolution WhatsApp QR</title>
-  <!-- Material Icons para ícones visuais -->
+  <!-- Material Icons -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
+    *, *::before, *::after {
       box-sizing: border-box;
     }
     body {
+      margin: 0;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -23,40 +23,56 @@
     .card {
       background: #fff;
       padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-      max-width: 360px;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      max-width: 400px;
       width: 90%;
+      text-align: center;
     }
     h1 {
-      font-size: 1.5rem;
-      color: #333;
-      margin-bottom: 1rem;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-wrap: wrap;
+      font-size: 1.8rem;
+      color: #333;
+      margin-bottom: 1.2rem;
     }
     h1 .material-icons {
-      font-size: 2rem;
+      font-size: 2.4rem;
       color: #25D366;
       margin-right: 0.5rem;
     }
     #status {
-      font-size: 1.1rem;
-      margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-wrap: wrap;
+      font-size: 1.1rem;
       color: #555;
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
     }
     #status .material-icons {
-      margin-right: 0.5rem;
+      font-size: 1.6rem;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+    #qr {
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     #qr img {
       max-width: 100%;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      height: auto;
+      border-radius: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 480px) {
+      .card { padding: 1.5rem; }
+      h1 { font-size: 1.6rem; }
+      #status { font-size: 1rem; }
     }
   </style>
 </head>
@@ -74,52 +90,55 @@
   </div>
 
   <script>
-    const params   = new URLSearchParams(location.search)
-    const instance = params.get('instance')
-    const statusEl = document.getElementById('status')
-    const qrEl     = document.getElementById('qr')
-    const interval = 10000
+    const params   = new URLSearchParams(location.search);
+    const instance = params.get('instance');
+    const statusEl = document.getElementById('status');
+    const qrEl     = document.getElementById('qr');
+    const interval = 10000;
 
     if (!instance) {
-      document.body.innerHTML = '<p style="color:red; text-align:center; padding:1rem;">⚠ Parâmetro “instance” ausente na URL</p>'
-      throw new Error('instance missing')
+      document.body.innerHTML = `
+        <p style="color:red; text-align:center; padding:1rem;">
+          ⚠ Parâmetro “instance” ausente na URL
+        </p>`;
+      throw new Error('instance missing');
     }
 
     async function check() {
-      statusEl.innerHTML = '<span class="material-icons">hourglass_top</span> Verificando…'
-      qrEl.innerHTML = ''
+      statusEl.innerHTML = '<span class="material-icons">hourglass_top</span> Verificando…';
+      qrEl.innerHTML = '';
 
       try {
-        const resp = await fetch(`/api/qr?instance=${instance}`)
-        const { state, base64, pairingCode } = await resp.json()
+        const resp = await fetch(`/api/qr?instance=${instance}`);
+        if (!resp.ok) throw new Error('fetch failed');
+        const { state, base64, pairingCode } = await resp.json();
 
         if (state === 'open') {
-          statusEl.innerHTML = '<span class="material-icons" style="color:#4CAF50;">check_circle</span> Conectada'
-          return
+          statusEl.innerHTML = '<span class="material-icons" style="color:#4CAF50">check_circle</span> Conectada';
+          return;
         }
 
-        statusEl.innerHTML = '<span class="material-icons" style="color:#F44336;">error</span> Desconectada – escaneie o QR code:'
+        statusEl.innerHTML = '<span class="material-icons" style="color:#F44336">error</span> Desconectada – escaneie o QR code:';
 
-        if (base64) {
-          qrEl.innerHTML = `<img src="${base64}" alt="QR Code" />`
-        } else if (pairingCode) {
-          const url = 'https://chart.googleapis.com/chart'
-            + '?cht=qr'
-            + '&chs=300x300'
-            + `&chl=${encodeURIComponent(pairingCode)}`
-          qrEl.innerHTML = `<img src="${url}" alt="QR Code" />`
+        let imgSrc = base64 || (
+          pairingCode
+            ? `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(pairingCode)}`
+            : null
+        );
+
+        if (imgSrc) {
+          qrEl.innerHTML = `<img src="${imgSrc}" alt="QR Code">`;
         } else {
-          qrEl.textContent = 'Erro: QR code não disponível'
+          qrEl.innerHTML = '<p style="color:#999;">QR code não disponível</p>';
         }
-
       } catch (err) {
-        console.error(err)
-        statusEl.innerHTML = '<span class="material-icons" style="color:#FFA000;">warning</span> Erro ao buscar status'
+        console.error(err);
+        statusEl.innerHTML = '<span class="material-icons" style="color:#FFA000">warning</span> Erro ao buscar status';
       }
     }
 
-    check()
-    setInterval(check, interval)
+    check();
+    setInterval(check, interval);
   </script>
 </body>
 </html>
