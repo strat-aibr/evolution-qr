@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Evolution WhatsApp QR</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem }
+    #qr img { max-width: 300px; }
+    #status { margin-bottom: 1rem; font-weight: bold }
+  </style>
+</head>
+<body>
+  <h1>WhatsApp Evolution</h1>
+  <div id="status">Carregando…</div>
+  <div id="qr"></div>
+
+  <script>
+    const params = new URLSearchParams(location.search)
+    const instance = params.get('instance')
+    if (!instance) {
+      document.body.innerHTML = '<p style="color:red">⚠ Parâmetro “instance” ausente na URL</p>'
+      throw new Error('instance missing')
+    }
+
+    const statusEl = document.getElementById('status')
+    const qrEl = document.getElementById('qr')
+    const intervalMs = 10000
+
+    async function check() {
+      statusEl.textContent = 'Verificando…'
+      try {
+        const resp = await fetch(`/api/qr?instance=${instance}`)
+        const { state, qr } = await resp.json()
+        if (state === 'open') {
+          statusEl.textContent = '✅ Conectada'
+          qrEl.innerHTML = ''
+        } else {
+          statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
+          qrEl.innerHTML = `<img src="data:image/png;base64,${qr}" alt="QR Code" />`
+        }
+      } catch {
+        statusEl.textContent = '⚠ Erro ao buscar status'
+      }
+    }
+
+    check()
+    setInterval(check, intervalMs)
+  </script>
+</body>
+</html>
