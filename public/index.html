@@ -1,4 +1,5 @@
 <!-- public/index.html -->
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -16,11 +17,11 @@
   <div id="qr"></div>
 
   <script>
-    const params     = new URLSearchParams(location.search)
-    const instance   = params.get('instance')
-    const statusEl   = document.getElementById('status')
-    const qrEl       = document.getElementById('qr')
-    const intervalMs = 10000
+    const params   = new URLSearchParams(location.search)
+    const instance = params.get('instance')
+    const statusEl = document.getElementById('status')
+    const qrEl     = document.getElementById('qr')
+    const interval = 10000
 
     if (!instance) {
       document.body.innerHTML = '<p style="color:red">⚠ Parâmetro “instance” ausente na URL</p>'
@@ -33,9 +34,7 @@
 
       try {
         const resp = await fetch(`/api/qr?instance=${instance}`)
-        if (!resp.ok) throw new Error('fetch failed')
-        const { state, qr } = await resp.json()
-        console.log('API /qr →', { state, qr })
+        const { state, base64, pairingCode } = await resp.json()
 
         if (state === 'open') {
           statusEl.textContent = '✅ Conectada'
@@ -43,21 +42,14 @@
         }
 
         statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
-        if (!qr) {
+        if (base64) {
+          qrEl.innerHTML = `<img src="${base64}" alt="QR Code" />`
+        } else if (pairingCode) {
+          const src = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(pairingCode)}`
+          qrEl.innerHTML = `<img src="${src}" alt="QR Code" />`
+        } else {
           qrEl.textContent = 'Erro: QR code não disponível'
-          return
         }
-
-        // usa sempre Google Charts para gerar o QR a partir do payload
-        const url = 'https://chart.googleapis.com/chart'
-          + '?cht=qr'
-          + '&chs=300x300'
-          + `&chl=${encodeURIComponent(qr)}`
-
-        const img = document.createElement('img')
-        img.src = url
-        img.alt = 'QR Code'
-        qrEl.appendChild(img)
 
       } catch (err) {
         console.error(err)
@@ -66,7 +58,7 @@
     }
 
     check()
-    setInterval(check, intervalMs)
+    setInterval(check, interval)
   </script>
 </body>
 </html>

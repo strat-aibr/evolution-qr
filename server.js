@@ -1,3 +1,5 @@
+// server.js
+
 import express from 'express'
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
@@ -27,37 +29,36 @@ app.get('/api/qr', async (req, res) => {
   }
 
   try {
-    console.log(`→ Checando estado da instância ${instance}`)
+    // 1) Verifica estado
     const stateResp = await fetch(`${API_URL}/instance/connectionState/${instance}`, { headers })
     if (!stateResp.ok) {
       const txt = await stateResp.text()
       console.error('Erro ConnectionState:', stateResp.status, txt)
       return res.status(500).json({ error: 'Falha ao verificar estado', details: txt })
     }
-    const stateJson = await stateResp.json()
-    const instObj = stateJson.instance
-    if (!instObj || !instObj.state) {
-      console.error('Resposta inesperada da API de estado:', stateJson)
+    const { instance: instObj } = await stateResp.json()
+    if (!instObj?.state) {
+      console.error('Resposta inesperada da API de estado:', await stateResp.json())
       return res.status(500).json({ error: 'Resposta inesperada da API de estado' })
     }
     const state = instObj.state
 
-    let qr = null, pairingCode = null
+    // 2) Se desconectada, busca o QR array
+    let base64 = null, pairingCode = null
     if (state !== 'open') {
-      console.log('→ Instância desconectada, buscando QR')
       const qrResp = await fetch(`${API_URL}/instance/connect/${instance}`, { headers })
       if (!qrResp.ok) {
         const txt = await qrResp.text()
         console.error('Erro InstanceConnect:', qrResp.status, txt)
         return res.status(500).json({ error: 'Falha ao buscar QR', details: txt })
       }
-      const qrJson = await qrResp.json()
-      qr = qrJson.code?.replace(/\r?\n|\r/g, '') ?? null
-      pairingCode = qrJson.pairingCode ?? null
-      console.log('→ pairingCode:', pairingCode, ' – qr (slice):', qr?.slice(0,30))
+      const arr = await qrResp.json()
+      const item = Array.isArray(arr) ? arr[0] : arr
+      base64     = item.base64   || null
+      pairingCode= item.code     || null
     }
 
-    return res.json({ state, qr, pairingCode })
+    return res.json({ state, base64, pairingCode })
   } catch (err) {
     console.error('Erro interno no servidor:', err)
     return res.status(500).json({ error: 'Erro interno no servidor' })
