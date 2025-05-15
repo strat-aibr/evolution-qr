@@ -1,3 +1,5 @@
+<!-- public/index.html -->
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,6 +9,7 @@
     body { font-family: sans-serif; padding: 1rem }
     #qr img { max-width: 300px; }
     #status { margin-bottom: 1rem; font-weight: bold }
+    #qr { margin-top: 1rem }
   </style>
 </head>
 <body>
@@ -17,28 +20,42 @@
   <script>
     const params = new URLSearchParams(location.search)
     const instance = params.get('instance')
+    const statusEl = document.getElementById('status')
+    const qrEl = document.getElementById('qr')
+    const intervalMs = 10000
+
     if (!instance) {
       document.body.innerHTML = '<p style="color:red">⚠ Parâmetro “instance” ausente na URL</p>'
       throw new Error('instance missing')
     }
 
-    const statusEl = document.getElementById('status')
-    const qrEl = document.getElementById('qr')
-    const intervalMs = 10000
-
     async function check() {
       statusEl.textContent = 'Verificando…'
       try {
         const resp = await fetch(`/api/qr?instance=${instance}`)
+        if (!resp.ok) {
+          statusEl.textContent = '⚠ Erro ao buscar status'
+          return
+        }
         const { state, qr } = await resp.json()
+
         if (state === 'open') {
           statusEl.textContent = '✅ Conectada'
           qrEl.innerHTML = ''
         } else {
           statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
-          qrEl.innerHTML = `<img src="data:image/png;base64,${qr}" alt="QR Code" />`
+          if (qr) {
+            // se o retorno já vier com "data:" não re-prefixe
+            const src = qr.startsWith('data:') 
+              ? qr 
+              : `data:image/png;base64,${qr}`
+            qrEl.innerHTML = `<img src="${src}" alt="QR Code" />`
+          } else {
+            qrEl.textContent = 'Erro: QR code não disponível'
+          }
         }
-      } catch {
+      } catch (err) {
+        console.error(err)
         statusEl.textContent = '⚠ Erro ao buscar status'
       }
     }
