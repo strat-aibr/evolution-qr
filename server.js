@@ -1,6 +1,7 @@
 import express from 'express'
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
+import cors from 'cors'
 
 dotenv.config()
 
@@ -14,9 +15,10 @@ if (!API_URL || !API_KEY) {
   process.exit(1)
 }
 
-const headers = { apikey: API_KEY }
-
+app.use(cors())              // para permitir fetch do browser
 app.use(express.static('public'))
+
+const headers = { apikey: API_KEY }
 
 app.get('/api/qr', async (req, res) => {
   const instance = req.query.instance
@@ -25,7 +27,7 @@ app.get('/api/qr', async (req, res) => {
   }
 
   try {
-    // 1) Verifica estado
+    console.log(`→ Checando estado da instância ${instance}`)
     const stateResp = await fetch(`${API_URL}/instance/connectionState/${instance}`, { headers })
     if (!stateResp.ok) {
       const txt = await stateResp.text()
@@ -40,10 +42,9 @@ app.get('/api/qr', async (req, res) => {
     }
     const state = instObj.state
 
-    // 2) Se desconectada, busca o QR code e o pairingCode
-    let qr = null
-    let pairingCode = null
+    let qr = null, pairingCode = null
     if (state !== 'open') {
+      console.log('→ Instância desconectada, buscando QR')
       const qrResp = await fetch(`${API_URL}/instance/connect/${instance}`, { headers })
       if (!qrResp.ok) {
         const txt = await qrResp.text()
@@ -51,8 +52,10 @@ app.get('/api/qr', async (req, res) => {
         return res.status(500).json({ error: 'Falha ao buscar QR', details: txt })
       }
       const qrJson = await qrResp.json()
-      qr = qrJson.code
-      pairingCode = qrJson.pairingCode
+      // limpa quebras de linha
+      qr = qrJson.code?.replace(/\r?\n|\r/g, '') ?? null
+      pairingCode = qrJson.pairingCode ?? null
+      console.log('→ pairingCode:', pairingCode, ' – qr (str slice):', qr?.slice(0,30))
     }
 
     return res.json({ state, qr, pairingCode })

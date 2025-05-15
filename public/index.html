@@ -5,9 +5,8 @@
   <title>Evolution WhatsApp QR</title>
   <style>
     body { font-family: sans-serif; padding: 1rem }
-    #qr img { max-width: 300px; }
+    #qr img { max-width: 300px; display: block; margin-top: 1rem }
     #status { margin-bottom: 1rem; font-weight: bold }
-    #qr { margin-top: 1rem }
   </style>
 </head>
 <body>
@@ -16,10 +15,10 @@
   <div id="qr"></div>
 
   <script>
-    const params = new URLSearchParams(location.search)
-    const instance = params.get('instance')
-    const statusEl = document.getElementById('status')
-    const qrEl = document.getElementById('qr')
+    const params     = new URLSearchParams(location.search)
+    const instance   = params.get('instance')
+    const statusEl   = document.getElementById('status')
+    const qrEl       = document.getElementById('qr')
     const intervalMs = 10000
 
     if (!instance) {
@@ -27,39 +26,44 @@
       throw new Error('instance missing')
     }
 
+    function isBase64(str) {
+      return /^[A-Za-z0-9+/=]+$/.test(str)
+    }
+
     async function check() {
       statusEl.textContent = 'Verificando…'
+      qrEl.innerHTML = ''
+
       try {
         const resp = await fetch(`/api/qr?instance=${instance}`)
-        if (!resp.ok) {
-          statusEl.textContent = '⚠ Erro ao buscar status'
-          return
-        }
+        if (!resp.ok) throw new Error('fetch failed')
         const { state, qr, pairingCode } = await resp.json()
+        console.log({ state, qr, pairingCode })
 
         if (state === 'open') {
           statusEl.textContent = '✅ Conectada'
-          qrEl.innerHTML = ''
-        } else {
-          statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
-          qrEl.innerHTML = ''
-          let imgSrc
-          if (qr) {
-            imgSrc = qr.startsWith('data:')
-              ? qr
-              : `data:image/png;base64,${qr}`
-          } else if (pairingCode) {
-            imgSrc = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(pairingCode)}`
-          }
-          if (imgSrc) {
-            const img = document.createElement('img')
-            img.src = imgSrc
-            img.alt = 'QR Code'
-            qrEl.appendChild(img)
-          } else {
-            qrEl.textContent = 'Erro: QR code não disponível'
-          }
+          return
         }
+
+        statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
+        let src = null
+
+        if (qr && isBase64(qr)) {
+          src = `data:image/png;base64,${qr}`
+        } else if (pairingCode) {
+          src = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(pairingCode)}`
+        }
+
+        if (src) {
+          console.log('Imagem QR src:', src.slice(0,50), '…')
+          const img = document.createElement('img')
+          img.src = src
+          img.alt = 'QR Code'
+          qrEl.appendChild(img)
+        } else {
+          qrEl.textContent = 'Erro: QR code não disponível'
+        }
+
       } catch (err) {
         console.error(err)
         statusEl.textContent = '⚠ Erro ao buscar status'
