@@ -27,11 +27,6 @@
       throw new Error('instance missing')
     }
 
-    // Checa se a string é Base64 válida (somente chars base64 + =)
-    function isBase64(str) {
-      return /^[A-Za-z0-9+/=]+$/.test(str)
-    }
-
     async function check() {
       statusEl.textContent = 'Verificando…'
       qrEl.innerHTML = ''
@@ -48,27 +43,19 @@
         }
 
         statusEl.textContent = '❌ Desconectada – escaneie o QR code:'
-
-        // qr vem do servidor como:
-// • se for Base64 puro, é imagem pronta
-// • se não, é o pairing code (texto com "@")
-        let payload = qr
-        if (!payload) {
+        if (!qr) {
           qrEl.textContent = 'Erro: QR code não disponível'
           return
         }
 
-        let src
-        if (isBase64(payload)) {
-          // imagem retornada em Base64
-          src = `data:image/png;base64,${payload}`
-        } else {
-          // gera QR via Google Charts a partir do pairing code
-          src = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(payload)}`
-        }
+        // usa sempre Google Charts para gerar o QR a partir do payload
+        const url = 'https://chart.googleapis.com/chart'
+          + '?cht=qr'
+          + '&chs=300x300'
+          + `&chl=${encodeURIComponent(qr)}`
 
         const img = document.createElement('img')
-        img.src = src
+        img.src = url
         img.alt = 'QR Code'
         qrEl.appendChild(img)
 
