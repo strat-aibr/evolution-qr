@@ -15,7 +15,7 @@ if (!API_URL || !API_KEY) {
   process.exit(1)
 }
 
-app.use(cors())              // para permitir fetch do browser
+app.use(cors())
 app.use(express.static('public'))
 
 const headers = { apikey: API_KEY }
@@ -52,10 +52,9 @@ app.get('/api/qr', async (req, res) => {
         return res.status(500).json({ error: 'Falha ao buscar QR', details: txt })
       }
       const qrJson = await qrResp.json()
-      // limpa quebras de linha
       qr = qrJson.code?.replace(/\r?\n|\r/g, '') ?? null
       pairingCode = qrJson.pairingCode ?? null
-      console.log('→ pairingCode:', pairingCode, ' – qr (str slice):', qr?.slice(0,30))
+      console.log('→ pairingCode:', pairingCode, ' – qr (slice):', qr?.slice(0,30))
     }
 
     return res.json({ state, qr, pairingCode })
