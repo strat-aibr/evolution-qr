@@ -1,3 +1,5 @@
+// server.js
+
 import express from 'express'
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
@@ -14,39 +16,51 @@ if (!API_URL || !API_KEY) {
   process.exit(1)
 }
 
-// Serve arquivos estáticos em public/
+const headers = { apikey: API_KEY }
+
+// Serve arquivos estáticos da pasta `public/`
 app.use(express.static('public'))
 
-// Rota única: retorna estado e, se não "open", o QR code em base64
+// Endpoint que retorna o estado da instância e, se desconectada, o QR code em Base64
 app.get('/api/qr', async (req, res) => {
   const instance = req.query.instance
   if (!instance) {
-    return res.status(400).json({ error: 'Missing instance parameter' })
+    return res.status(400).json({ error: 'Parâmetro "instance" é obrigatório' })
   }
 
   try {
-    // 1) Verifica estado
-    const stateResp = await fetch(`${API_URL}/instance/connectionState/${instance}`, {
-      headers: { 'x-api-key': API_KEY }
-    })
-    const { instance: instObj } = await stateResp.json()
+    // 1) Verifica estado da instância
+    const stateResp = await fetch(`${API_URL}/instance/connectionState/${instance}`, { headers })
+    if (!stateResp.ok) {
+      const txt = await stateResp.text()
+      console.error('Erro ConnectionState:', stateResp.status, txt)
+      return res.status(500).json({ error: 'Falha ao verificar estado', details: txt })
+    }
+    const stateJson = await stateResp.json()
+    const instObj = stateJson.instance
+    if (!instObj || !instObj.state) {
+      console.error('Resposta inesperada da API de estado:', stateJson)
+      return res.status(500).json({ error: 'Resposta inesperada da API de estado' })
+    }
     const state = instObj.state
 
+    // 2) Se não estiver "open", busca o QR code
     let qr = null
     if (state !== 'open') {
-      // 2) Pega QR code em base64
-      const qrResp = await fetch(`${API_URL}/instance/connect/${instance}`, {
-        headers: { 'x-api-key': API_KEY }
-      })
+      const qrResp = await fetch(`${API_URL}/instance/connect/${instance}`, { headers })
+      if (!qrResp.ok) {
+        const txt = await qrResp.text()
+        console.error('Erro InstanceConnect:', qrResp.status, txt)
+        return res.status(500).json({ error: 'Falha ao buscar QR', details: txt })
+      }
       const qrJson = await qrResp.json()
-      // usa o campo 'code' (já em Base64)
-      qr = qrJson.code
+      qr = qrJson.code   // campo `code` já vem em Base64
     }
 
     return res.json({ state, qr })
   } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: 'Erro ao conectar à Evolution API' })
+    console.error('Erro interno no servidor:', err)
+    return res.status(500).json({ error: 'Erro interno no servidor' })
   }
 })
 
